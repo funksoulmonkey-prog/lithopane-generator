@@ -110,6 +110,10 @@ st.set_page_config(page_title="Lithophane Generator", layout="wide")
 st.title("Lithophane Panel Generator")
 st.caption("Upload a photo → generate a 3D-printable lithophane STL")
 
+# Session library
+if "library" not in st.session_state:
+    st.session_state.library = []
+
 col1, col2 = st.columns([1, 1])
 
 with col1:
@@ -124,6 +128,7 @@ with col1:
     shape = st.selectbox("Shape", ["flat", "curved", "cylinder"])
     curve = st.slider("Curve angle (°)", 30, 180, 120, 5) if shape == "curved" else 120
     simplify = st.slider("Simplify (keep fraction)", 0.1, 1.0, 0.6, 0.05)
+    panel_name = st.text_input("Panel name (optional)", value="My Lithophane")
 
 with col2:
     if uploaded is None:
@@ -153,11 +158,20 @@ with col2:
             st.download_button(
                 label="Download STL",
                 data=stl_bytes,
-                file_name="lithophane.stl",
+                file_name=f"{panel_name.replace(' ', '_')}.stl",
                 mime="model/stl",
             )
             st.caption(f"Thickness range: {z.min():.2f} – {z.max():.2f} mm  |  "
                        f"Bounds: {mesh.bounds.round(1).tolist()}")
+
+            # Save to session library
+            st.session_state.library.append({
+                "name": panel_name or f"Panel {len(st.session_state.library)+1}",
+                "stl": stl_bytes,
+                "faces": len(mesh.faces),
+                "width": width,
+                "height": height,
+            })
 
             # 3D preview (vertical / standing orientation)
             st.subheader("3D Preview")
@@ -191,6 +205,22 @@ with col2:
                 height=500,
             )
             st.plotly_chart(fig, use_container_width=True)
+
+# ── Library ───────────────────────────────────────────────────
+st.markdown("---")
+st.subheader("Session Library")
+if not st.session_state.library:
+    st.info("Generated panels will appear here during this session.")
+else:
+    for i, item in enumerate(reversed(st.session_state.library)):
+        with st.expander(f"{item['name']}  ({item['width']}×{item['height']} mm, {item['faces']:,} faces)"):
+            st.download_button(
+                label="Download again",
+                data=item["stl"],
+                file_name=f"{item['name'].replace(' ', '_')}.stl",
+                mime="model/stl",
+                key=f"dl_{i}_{item['name']}",
+            )
 
 st.markdown("---")
 st.markdown("**Print tips:** vertical orientation, white/natural PLA, 0.1–0.12 mm layers, solid walls.")

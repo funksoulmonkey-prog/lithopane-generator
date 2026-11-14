@@ -173,13 +173,13 @@ with col2:
                 "height": height,
             })
 
-            # 3D preview (vertical / standing orientation)
+            # 3D preview — front face first (vertical)
             st.subheader("3D Preview")
             verts = mesh.vertices.copy()
-            # Rotate so it stands upright (thickness becomes the Y or Z visual depth)
-            # Current: X width, Y height, Z thickness → make Z the vertical axis
-            verts_vert = verts[:, [0, 2, 1]]  # X, Z(thickness), Y → now height is vertical
+            # X = width, Y = height, Z = thickness → rotate to vertical and face camera
+            verts_vert = verts[:, [0, 2, 1]]
             faces = mesh.faces
+
             fig = go.Figure(data=[
                 go.Mesh3d(
                     x=verts_vert[:, 0],
@@ -188,9 +188,9 @@ with col2:
                     i=faces[:, 0],
                     j=faces[:, 1],
                     k=faces[:, 2],
-                    color="lightgray",
-                    opacity=0.9,
-                    lighting=dict(ambient=0.4, diffuse=0.8, specular=0.3),
+                    color="white",
+                    opacity=0.95,
+                    lighting=dict(ambient=0.6, diffuse=0.7, specular=0.2),
                 )
             ])
             fig.update_layout(
@@ -199,12 +199,28 @@ with col2:
                     xaxis_title="Width (mm)",
                     yaxis_title="Thickness (mm)",
                     zaxis_title="Height (mm)",
-                    camera=dict(eye=dict(x=1.5, y=-1.5, z=0.8)),
+                    # Camera looking straight at the front face
+                    camera=dict(
+                        eye=dict(x=0, y=-2.2, z=0.3),
+                        up=dict(x=0, y=0, z=1),
+                        center=dict(x=0, y=0, z=0),
+                    ),
                 ),
                 margin=dict(l=0, r=0, t=0, b=0),
                 height=500,
             )
             st.plotly_chart(fig, use_container_width=True)
+
+            # Backlight simulation button
+            if st.button("Simulate backlight", key="backlight_btn"):
+                # Approximate transmitted light: thinner = brighter
+                # Use the original height field z (bright pixels were thin)
+                gray_preview = (z - z.min()) / (z.max() - z.min() + 1e-6)
+                # Invert so thin (small z) is bright
+                light = 1.0 - gray_preview
+                light = np.clip(light ** 0.7, 0, 1)  # mild gamma for nicer look
+                preview_img = (light * 255).astype(np.uint8)
+                st.image(preview_img, caption="Simulated backlight (thinner areas glow)", width="stretch")
 
 # ── Library ───────────────────────────────────────────────────
 st.markdown("---")

@@ -199,7 +199,13 @@ if "last_mesh" in st.session_state:
 
     brightness = 1.0
     if st.session_state.backlight:
-        brightness = st.slider("Backlight brightness", 0.3, 2.5, 1.2, 0.1, key="bright_slider")
+        brightness = st.slider("Backlight brightness", 0.1, 2.5, 1.0, 0.1, key="bright_slider")
+
+    # Reset view button
+    if "view_key" not in st.session_state:
+        st.session_state.view_key = 0
+    if st.button("Reset view", key="reset_view_btn"):
+        st.session_state.view_key += 1
 
     verts_vert = verts[:, [0, 2, 1]]
     # Flip so the image face points toward the camera (front)

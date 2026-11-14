@@ -202,6 +202,8 @@ if "last_mesh" in st.session_state:
         brightness = st.slider("Backlight brightness", 0.3, 2.5, 1.2, 0.1, key="bright_slider")
 
     verts_vert = verts[:, [0, 2, 1]]
+    # Flip so the image face points toward the camera (front)
+    verts_vert[:, 1] = -verts_vert[:, 1]
 
     if st.session_state.backlight:
         thick = verts[:, 2]
@@ -257,19 +259,29 @@ if "last_mesh" in st.session_state:
             yaxis_title="Thickness (mm)",
             zaxis_title="Height (mm)",
             camera=dict(
-                eye=dict(x=0, y=-2.2, z=0.3),
+                eye=dict(x=0.15, y=-2.0, z=0.25),
                 up=dict(x=0, y=0, z=1),
                 center=dict(x=0, y=0, z=0),
             ),
+            # Soft limit on how far the user can orbit
+            xaxis=dict(range=[-width*0.7, width*0.7]),
+            yaxis=dict(range=[-8, 8]),
+            zaxis=dict(range=[-height*0.7, height*0.7]),
             bgcolor=scene_bg,
+            dragmode="orbit",
         ),
         margin=dict(l=0, r=0, t=0, b=0),
         height=500,
         paper_bgcolor=paper_bg,
+        # Reduce free rotation feel
+        scene_camera_eye=dict(x=0.15, y=-2.0, z=0.25),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    # Note: Plotly does not hard-lock to exactly 30°, but the default
+    # camera and axis ranges keep the view close to the front face.
+    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
     if caption:
         st.caption(caption)
+    st.caption("Tip: the view stays near the front. Large rotations are limited.")
 
 # ── Library ───────────────────────────────────────────────────
 st.markdown("---")

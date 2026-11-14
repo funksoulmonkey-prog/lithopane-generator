@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 """
 Interactive Lithophane Generator (Streamlit)
-
-Run with:
-    streamlit run app.py
 """
 
 import io
@@ -13,7 +10,7 @@ import streamlit as st
 import trimesh
 import plotly.graph_objects as go
 
-# Reuse core functions from the CLI version
+
 def load_and_resize_from_pil(img: Image.Image, width_mm: float, height_mm: float, res_mm: float):
     img = img.convert("L")
     n_x = max(2, int(round(width_mm / res_mm)) + 1)
@@ -28,8 +25,7 @@ def height_map(gray, tmin, tmax, mode="linear", mu=1.0):
     elif mode == "beer":
         t_lo = np.exp(-mu * tmax)
         t_hi = np.exp(-mu * tmin)
-        transmission = t_lo + gray * (t_hi - t_lo)
-        transmission = np.clip(transmission, 1e-6, 1.0)
+        transmission = np.clip(t_lo + gray * (t_hi - t_lo), 1e-6, 1.0)
         return -np.log(transmission) / mu
     raise ValueError(mode)
 
@@ -64,10 +60,7 @@ def build_mesh(z, res_mm, shape="flat", curve_deg=120.0):
         return r * nx + c
 
     r, c = np.meshgrid(np.arange(ny - 1), np.arange(nx - 1), indexing="ij")
-    a = idx(r, c)
-    b = idx(r, c + 1)
-    d = idx(r + 1, c)
-    e = idx(r + 1, c + 1)
+    a, b, d, e = idx(r, c), idx(r, c + 1), idx(r + 1, c), idx(r + 1, c + 1)
 
     top_faces = np.vstack([
         np.stack([a, d, e], -1).reshape(-1, 3),
@@ -88,7 +81,6 @@ def build_mesh(z, res_mm, shape="flat", curve_deg=120.0):
     n_top = len(top)
     bottom_verts = top[per].copy()
     bottom_verts[:, 2] = bottom_verts[:, 2].min() - 0.1
-
     center = np.array([[bottom_verts[:, 0].mean(),
                         bottom_verts[:, 1].mean(),
                         bottom_verts[:, 2].mean()]])
@@ -96,16 +88,13 @@ def build_mesh(z, res_mm, shape="flat", curve_deg=120.0):
 
     n_per = len(per)
     center_idx = n_top + n_per
-    bottom_faces = [[n_top + i, n_top + ((i + 1) % n_per), center_idx]
-                    for i in range(n_per)]
+    bottom_faces = [[n_top + i, n_top + ((i + 1) % n_per), center_idx] for i in range(n_per)]
     bottom_faces = np.array(bottom_faces, dtype=np.int32)
 
     wall_faces = []
     for i in range(n_per):
-        t0 = per[i]
-        t1 = per[(i + 1) % n_per]
-        b0 = n_top + i
-        b1 = n_top + ((i + 1) % n_per)
+        t0, t1 = per[i], per[(i + 1) % n_per]
+        b0, b1 = n_top + i, n_top + ((i + 1) % n_per)
         wall_faces.append([t0, b0, b1])
         wall_faces.append([t0, b1, t1])
     wall_faces = np.array(wall_faces, dtype=np.int32)
@@ -156,7 +145,6 @@ with col2:
                 mesh.vertices[:, 2] -= mesh.vertices[:, 2].min()
                 mesh.vertices[:, :2] -= mesh.vertices[:, :2].mean(axis=0)
 
-                # Export to bytes
                 buf = io.BytesIO()
                 mesh.export(buf, file_type="stl")
                 stl_bytes = buf.getvalue()
@@ -171,15 +159,18 @@ with col2:
             st.caption(f"Thickness range: {z.min():.2f} – {z.max():.2f} mm  |  "
                        f"Bounds: {mesh.bounds.round(1).tolist()}")
 
-            # Lightweight 3D preview with Plotly
+            # 3D preview (vertical / standing orientation)
             st.subheader("3D Preview")
-            verts = mesh.vertices
+            verts = mesh.vertices.copy()
+            # Rotate so it stands upright (thickness becomes the Y or Z visual depth)
+            # Current: X width, Y height, Z thickness → make Z the vertical axis
+            verts_vert = verts[:, [0, 2, 1]]  # X, Z(thickness), Y → now height is vertical
             faces = mesh.faces
             fig = go.Figure(data=[
                 go.Mesh3d(
-                    x=verts[:, 0],
-                    y=verts[:, 1],
-                    z=verts[:, 2],
+                    x=verts_vert[:, 0],
+                    y=verts_vert[:, 1],
+                    z=verts_vert[:, 2],
                     i=faces[:, 0],
                     j=faces[:, 1],
                     k=faces[:, 2],
@@ -191,12 +182,13 @@ with col2:
             fig.update_layout(
                 scene=dict(
                     aspectmode="data",
-                    xaxis_title="X (mm)",
-                    yaxis_title="Y (mm)",
-                    zaxis_title="Z (mm)",
+                    xaxis_title="Width (mm)",
+                    yaxis_title="Thickness (mm)",
+                    zaxis_title="Height (mm)",
+                    camera=dict(eye=dict(x=1.5, y=-1.5, z=0.8)),
                 ),
                 margin=dict(l=0, r=0, t=0, b=0),
-                height=450,
+                height=500,
             )
             st.plotly_chart(fig, use_container_width=True)
 

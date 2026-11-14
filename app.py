@@ -107,6 +107,17 @@ def build_mesh(z, res_mm, shape="flat", curve_deg=120.0):
 
 # ── Streamlit UI ──────────────────────────────────────────────
 st.set_page_config(page_title="Lithophane Generator", layout="wide")
+
+# Custom CSS for blue-to-red brightness slider
+st.markdown("""
+<style>
+div[data-testid="stSlider"] > div > div > div > div {
+    background: linear-gradient(to right, #1e3a8a, #3b82f6, #f59e0b, #ef4444) !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+st.title("Lithophane Panel Generator")
 st.title("Lithophane Panel Generator")
 st.caption("Upload a photo → generate a 3D-printable lithophane STL")
 

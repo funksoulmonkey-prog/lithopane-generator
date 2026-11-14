@@ -258,8 +258,6 @@ if "last_mesh" in st.session_state:
     st.plotly_chart(fig, use_container_width=True)
     if caption:
         st.caption(caption)
-            else:
-                st.info("Generate a panel to see the 3D preview.")
 
 # ── Library ───────────────────────────────────────────────────
 st.markdown("---")

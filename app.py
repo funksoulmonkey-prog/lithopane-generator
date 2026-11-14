@@ -175,10 +175,35 @@ with col2:
 
             # 3D preview — front face first (vertical)
             st.subheader("3D Preview")
+
+            # Backlight toggle (persists)
+            if "backlight" not in st.session_state:
+                st.session_state.backlight = False
+            if st.button("Simulate backlight" if not st.session_state.backlight else "Show normal view", key="backlight_btn"):
+                st.session_state.backlight = not st.session_state.backlight
+
             verts = mesh.vertices.copy()
-            # X = width, Y = height, Z = thickness → rotate to vertical and face camera
             verts_vert = verts[:, [0, 2, 1]]
             faces = mesh.faces
+
+            # Color by thickness when backlight is on (thinner = brighter)
+            if st.session_state.backlight:
+                # Map thickness to brightness (thin = bright)
+                thick = verts[:, 2]
+                bright = 1.0 - (thick - thick.min()) / (thick.max() - thick.min() + 1e-6)
+                bright = np.clip(bright ** 0.6, 0, 1)
+                # White-to-bright yellow-white glow
+                colors = np.stack([
+                    0.9 + 0.1 * bright,
+                    0.85 + 0.15 * bright,
+                    0.6 + 0.4 * bright
+                ], axis=1)
+                intensity = bright
+                mesh_color = None
+            else:
+                colors = None
+                intensity = None
+                mesh_color = "white"
 
             fig = go.Figure(data=[
                 go.Mesh3d(
@@ -188,9 +213,16 @@ with col2:
                     i=faces[:, 0],
                     j=faces[:, 1],
                     k=faces[:, 2],
-                    color="white",
+                    color=mesh_color,
+                    vertexcolor=colors if colors is not None else None,
+                    intensity=intensity,
+                    colorscale=[[0, "rgb(40,40,40)"], [1, "rgb(255,255,220)"]] if st.session_state.backlight else None,
                     opacity=0.95,
-                    lighting=dict(ambient=0.6, diffuse=0.7, specular=0.2),
+                    lighting=dict(
+                        ambient=0.8 if st.session_state.backlight else 0.5,
+                        diffuse=0.5 if st.session_state.backlight else 0.7,
+                        specular=0.1,
+                    ),
                 )
             ])
             fig.update_layout(
@@ -199,28 +231,21 @@ with col2:
                     xaxis_title="Width (mm)",
                     yaxis_title="Thickness (mm)",
                     zaxis_title="Height (mm)",
-                    # Camera looking straight at the front face
                     camera=dict(
                         eye=dict(x=0, y=-2.2, z=0.3),
                         up=dict(x=0, y=0, z=1),
                         center=dict(x=0, y=0, z=0),
                     ),
+                    bgcolor="black" if st.session_state.backlight else "white",
                 ),
                 margin=dict(l=0, r=0, t=0, b=0),
                 height=500,
+                paper_bgcolor="black" if st.session_state.backlight else "white",
             )
             st.plotly_chart(fig, use_container_width=True)
 
-            # Backlight simulation button
-            if st.button("Simulate backlight", key="backlight_btn"):
-                # Approximate transmitted light: thinner = brighter
-                # Use the original height field z (bright pixels were thin)
-                gray_preview = (z - z.min()) / (z.max() - z.min() + 1e-6)
-                # Invert so thin (small z) is bright
-                light = 1.0 - gray_preview
-                light = np.clip(light ** 0.7, 0, 1)  # mild gamma for nicer look
-                preview_img = (light * 255).astype(np.uint8)
-                st.image(preview_img, caption="Simulated backlight (thinner areas glow)", width="stretch")
+            if st.session_state.backlight:
+                st.caption("Backlight mode: thinner areas appear brighter (simulating light shining through).")
 
 # ── Library ───────────────────────────────────────────────────
 st.markdown("---")

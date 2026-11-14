@@ -216,6 +216,9 @@ if "last_mesh" in st.session_state:
         t_norm = (thick - thick.min()) / (thick.max() - thick.min() + 1e-6)
         bright = np.clip((1.0 - t_norm) ** 0.35, 0, 1)
         bright = np.clip(bright * brightness, 0, 1)
+        # At 0 brightness force fully dark
+        if brightness <= 0.01:
+            bright = np.zeros_like(bright)
 
         fig = go.Figure(data=[
             go.Mesh3d(
@@ -279,12 +282,14 @@ if "last_mesh" in st.session_state:
         margin=dict(l=0, r=0, t=0, b=0),
         height=500,
         paper_bgcolor=paper_bg,
-        # Reduce free rotation feel
-        scene_camera_eye=dict(x=0.15, y=-2.0, z=0.25),
+        uirevision=st.session_state.view_key,  # forces camera reset
     )
-    # Note: Plotly does not hard-lock to exactly 30°, but the default
-    # camera and axis ranges keep the view close to the front face.
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(
+        fig,
+        use_container_width=True,
+        key=f"preview_{st.session_state.view_key}",
+        config={"displayModeBar": False, "scrollZoom": False},
+    )
     if caption:
         st.caption(caption)
     st.caption("Tip: the view stays near the front. Large rotations are limited.")

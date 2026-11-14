@@ -13,11 +13,10 @@ import streamlit as st
 import trimesh
 
 # Reuse core functions from the CLI version
-def load_and_resize_from_pil(img: Image.Image, width_mm: float, res_mm: float):
+def load_and_resize_from_pil(img: Image.Image, width_mm: float, height_mm: float, res_mm: float):
     img = img.convert("L")
     n_x = max(2, int(round(width_mm / res_mm)) + 1)
-    aspect = img.height / img.width
-    n_y = max(2, int(round(n_x * aspect)))
+    n_y = max(2, int(round(height_mm / res_mm)) + 1)
     img = img.resize((n_x, n_y), Image.Resampling.LANCZOS)
     return np.asarray(img, dtype=np.float32) / 255.0
 
@@ -126,6 +125,7 @@ col1, col2 = st.columns([1, 1])
 with col1:
     uploaded = st.file_uploader("Upload photo", type=["png", "jpg", "jpeg", "webp"])
     width = st.slider("Width (mm)", 40, 250, 100, 5)
+    height = st.slider("Height (mm)", 40, 250, 75, 5)
     res = st.slider("Resolution (mm/pixel)", 0.15, 0.8, 0.3, 0.05)
     tmin = st.slider("Min thickness (mm)", 0.4, 2.0, 0.8, 0.1)
     tmax = st.slider("Max thickness (mm)", 1.5, 5.0, 3.0, 0.1)
@@ -144,7 +144,7 @@ with col2:
 
         if st.button("Generate STL", type="primary"):
             with st.spinner("Building mesh…"):
-                gray = load_and_resize_from_pil(img, width, res)
+                gray = load_and_resize_from_pil(img, width, height, res)
                 z = height_map(gray, tmin, tmax, mapping, mu)
                 mesh = build_mesh(z, res, shape, curve)
 

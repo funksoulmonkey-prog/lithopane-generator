@@ -11,6 +11,7 @@ import numpy as np
 from PIL import Image
 import streamlit as st
 import trimesh
+import pyvista as pv
 
 # Reuse core functions from the CLI version
 def load_and_resize_from_pil(img: Image.Image, width_mm: float, height_mm: float, res_mm: float):
@@ -169,6 +170,15 @@ with col2:
             )
             st.caption(f"Thickness range: {z.min():.2f} – {z.max():.2f} mm  |  "
                        f"Bounds: {mesh.bounds.round(1).tolist()}")
+
+            # 3D preview
+            st.subheader("3D Preview")
+            pv_mesh = pv.wrap(mesh)
+            plotter = pv.Plotter(window_size=[600, 400], off_screen=True)
+            plotter.add_mesh(pv_mesh, color="white", show_edges=False, lighting=True)
+            plotter.view_isometric()
+            plotter.set_background("black")
+            st.pyvista_chart(plotter)
 
 st.markdown("---")
 st.markdown("**Print tips:** vertical orientation, white/natural PLA, 0.1–0.12 mm layers, solid walls.")

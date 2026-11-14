@@ -11,7 +11,7 @@ import numpy as np
 from PIL import Image
 import streamlit as st
 import trimesh
-import pyvista as pv
+import plotly.graph_objects as go
 
 # Reuse core functions from the CLI version
 def load_and_resize_from_pil(img: Image.Image, width_mm: float, height_mm: float, res_mm: float):
@@ -141,7 +141,7 @@ with col2:
         st.info("Upload an image to generate a lithophane.")
     else:
         img = Image.open(uploaded)
-        st.image(img, caption="Source", use_container_width=True)
+        st.image(img, caption="Source", width="stretch")
 
         if st.button("Generate STL", type="primary"):
             with st.spinner("Building mesh…"):
@@ -171,14 +171,34 @@ with col2:
             st.caption(f"Thickness range: {z.min():.2f} – {z.max():.2f} mm  |  "
                        f"Bounds: {mesh.bounds.round(1).tolist()}")
 
-            # 3D preview
+            # Lightweight 3D preview with Plotly
             st.subheader("3D Preview")
-            pv_mesh = pv.wrap(mesh)
-            plotter = pv.Plotter(window_size=[600, 400], off_screen=True)
-            plotter.add_mesh(pv_mesh, color="white", show_edges=False, lighting=True)
-            plotter.view_isometric()
-            plotter.set_background("black")
-            st.pyvista_chart(plotter)
+            verts = mesh.vertices
+            faces = mesh.faces
+            fig = go.Figure(data=[
+                go.Mesh3d(
+                    x=verts[:, 0],
+                    y=verts[:, 1],
+                    z=verts[:, 2],
+                    i=faces[:, 0],
+                    j=faces[:, 1],
+                    k=faces[:, 2],
+                    color="lightgray",
+                    opacity=0.9,
+                    lighting=dict(ambient=0.4, diffuse=0.8, specular=0.3),
+                )
+            ])
+            fig.update_layout(
+                scene=dict(
+                    aspectmode="data",
+                    xaxis_title="X (mm)",
+                    yaxis_title="Y (mm)",
+                    zaxis_title="Z (mm)",
+                ),
+                margin=dict(l=0, r=0, t=0, b=0),
+                height=450,
+            )
+            st.plotly_chart(fig, use_container_width=True)
 
 st.markdown("---")
 st.markdown("**Print tips:** vertical orientation, white/natural PLA, 0.1–0.12 mm layers, solid walls.")

@@ -210,7 +210,12 @@ if "last_mesh" in st.session_state:
 
     brightness = 1.0
     if st.session_state.backlight:
-        brightness = st.slider("Backlight brightness", 0.1, 2.5, 1.0, 0.1, key="bright_slider")
+        brightness = st.slider(
+            "Backlight brightness (0 = off)",
+            0.0, 2.5, 1.0, 0.05,
+            key="bright_slider",
+            help="0 = completely off"
+        )
 
     # Reset view button
     if "view_key" not in st.session_state:
@@ -225,11 +230,11 @@ if "last_mesh" in st.session_state:
     if st.session_state.backlight:
         thick = verts[:, 2]
         t_norm = (thick - thick.min()) / (thick.max() - thick.min() + 1e-6)
-        bright = np.clip((1.0 - t_norm) ** 0.35, 0, 1)
-        bright = np.clip(bright * brightness, 0, 1)
-        # At 0 brightness force fully dark
-        if brightness <= 0.01:
-            bright = np.zeros_like(bright)
+        if brightness <= 0.0:
+            bright = np.zeros_like(thick)
+        else:
+            bright = np.clip((1.0 - t_norm) ** 0.45, 0, 1)
+            bright = np.clip(bright * (brightness ** 2.4), 0, 1)
 
         fig = go.Figure(data=[
             go.Mesh3d(
@@ -299,7 +304,12 @@ if "last_mesh" in st.session_state:
         fig,
         use_container_width=True,
         key=f"preview_{st.session_state.view_key}",
-        config={"displayModeBar": False, "scrollZoom": False},
+        config={
+            "displayModeBar": True,
+            "scrollZoom": True,
+            "displaylogo": False,
+            "modeBarButtonsToRemove": ["pan2d", "select2d", "lasso2d"],
+        },
     )
     if caption:
         st.caption(caption)

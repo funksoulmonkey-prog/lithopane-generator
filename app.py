@@ -197,17 +197,17 @@ if "last_mesh" in st.session_state:
     ):
         st.session_state.backlight = not st.session_state.backlight
 
+    brightness = 1.0
+    if st.session_state.backlight:
+        brightness = st.slider("Backlight brightness", 0.3, 2.5, 1.2, 0.1, key="bright_slider")
+
     verts_vert = verts[:, [0, 2, 1]]
 
     if st.session_state.backlight:
-        # Use original height field for better image contrast
-        # Thinner plastic = more light = brighter
         thick = verts[:, 2]
-        # Stronger contrast curve so details pop
         t_norm = (thick - thick.min()) / (thick.max() - thick.min() + 1e-6)
-        bright = np.clip((1.0 - t_norm) ** 0.35, 0, 1)  # stronger gamma
-        # Boost mid-tones for more visible image
-        bright = np.clip(bright * 1.4, 0, 1)
+        bright = np.clip((1.0 - t_norm) ** 0.35, 0, 1)
+        bright = np.clip(bright * brightness, 0, 1)
 
         fig = go.Figure(data=[
             go.Mesh3d(
@@ -224,14 +224,14 @@ if "last_mesh" in st.session_state:
                     [0.6, "rgb(200,180,100)"],
                     [1.0, "rgb(255,255,220)"],
                 ],
+                showscale=False,
                 opacity=1.0,
                 lighting=dict(ambient=1.0, diffuse=0.2, specular=0.05),
-                flatshading=False,
             )
         ])
         scene_bg = "black"
         paper_bg = "black"
-        caption = "Backlight mode: thinner areas glow — image details should be clearly visible."
+        caption = "Backlight mode: adjust the slider to brighten or dim."
     else:
         fig = go.Figure(data=[
             go.Mesh3d(

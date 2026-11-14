@@ -1,3 +1,5 @@
+
+st.markdown("**Print tips:** vertical orientation, white/natural PLA, 0.1–0.12 mm layers, solid walls.")
 #!/usr/bin/env python3
 """
 Interactive Lithophane Generator (Streamlit)
@@ -154,6 +156,15 @@ with col2:
                 mesh.export(buf, file_type="stl")
                 stl_bytes = buf.getvalue()
 
+                # Keep mesh data for preview across button clicks
+                st.session_state.last_mesh = {
+                    "vertices": mesh.vertices.copy(),
+                    "faces": mesh.faces.copy(),
+                    "z": z.copy(),
+                }
+                st.session_state.last_stl = stl_bytes
+                st.session_state.last_name = panel_name
+
             st.success(f"Done — {len(mesh.faces):,} faces, watertight={mesh.is_watertight}")
             st.download_button(
                 label="Download STL",
@@ -176,76 +187,83 @@ with col2:
             # 3D preview — front face first (vertical)
             st.subheader("3D Preview")
 
-            # Backlight toggle (persists)
-            if "backlight" not in st.session_state:
-                st.session_state.backlight = False
-            if st.button("Simulate backlight" if not st.session_state.backlight else "Show normal view", key="backlight_btn"):
-                st.session_state.backlight = not st.session_state.backlight
+            if "last_mesh" in st.session_state:
+                mdata = st.session_state.last_mesh
+                verts = mdata["vertices"]
+                faces = mdata["faces"]
 
-            verts = mesh.vertices.copy()
-            verts_vert = verts[:, [0, 2, 1]]
-            faces = mesh.faces
+                # Backlight toggle
+                if "backlight" not in st.session_state:
+                    st.session_state.backlight = False
+                if st.button(
+                    "Simulate backlight" if not st.session_state.backlight else "Show normal view",
+                    key="backlight_btn",
+                ):
+                    st.session_state.backlight = not st.session_state.backlight
 
-            # Color by thickness when backlight is on (thinner = brighter)
-            if st.session_state.backlight:
-                # Map thickness to brightness (thin = bright)
-                thick = verts[:, 2]
-                bright = 1.0 - (thick - thick.min()) / (thick.max() - thick.min() + 1e-6)
-                bright = np.clip(bright ** 0.6, 0, 1)
-                # White-to-bright yellow-white glow
-                colors = np.stack([
-                    0.9 + 0.1 * bright,
-                    0.85 + 0.15 * bright,
-                    0.6 + 0.4 * bright
-                ], axis=1)
-                intensity = bright
-                mesh_color = None
-            else:
-                colors = None
-                intensity = None
-                mesh_color = "white"
+                verts_vert = verts[:, [0, 2, 1]]
 
-            fig = go.Figure(data=[
-                go.Mesh3d(
-                    x=verts_vert[:, 0],
-                    y=verts_vert[:, 1],
-                    z=verts_vert[:, 2],
-                    i=faces[:, 0],
-                    j=faces[:, 1],
-                    k=faces[:, 2],
-                    color=mesh_color,
-                    vertexcolor=colors if colors is not None else None,
-                    intensity=intensity,
-                    colorscale=[[0, "rgb(40,40,40)"], [1, "rgb(255,255,220)"]] if st.session_state.backlight else None,
-                    opacity=0.95,
-                    lighting=dict(
-                        ambient=0.8 if st.session_state.backlight else 0.5,
-                        diffuse=0.5 if st.session_state.backlight else 0.7,
-                        specular=0.1,
+                if st.session_state.backlight:
+                    thick = verts[:, 2]
+                    bright = 1.0 - (thick - thick.min()) / (thick.max() - thick.min() + 1e-6)
+                    bright = np.clip(bright ** 0.6, 0, 1)
+                    fig = go.Figure(data=[
+                        go.Mesh3d(
+                            x=verts_vert[:, 0],
+                            y=verts_vert[:, 1],
+                            z=verts_vert[:, 2],
+                            i=faces[:, 0],
+                            j=faces[:, 1],
+                            k=faces[:, 2],
+                            intensity=bright,
+                            colorscale=[[0, "rgb(30,30,30)"], [1, "rgb(255,255,200)"]],
+                            opacity=0.95,
+                            lighting=dict(ambient=0.9, diffuse=0.4, specular=0.1),
+                        )
+                    ])
+                    scene_bg = "black"
+                    paper_bg = "black"
+                    caption = "Backlight mode: thinner areas glow brighter."
+                else:
+                    fig = go.Figure(data=[
+                        go.Mesh3d(
+                            x=verts_vert[:, 0],
+                            y=verts_vert[:, 1],
+                            z=verts_vert[:, 2],
+                            i=faces[:, 0],
+                            j=faces[:, 1],
+                            k=faces[:, 2],
+                            color="white",
+                            opacity=0.95,
+                            lighting=dict(ambient=0.5, diffuse=0.7, specular=0.2),
+                        )
+                    ])
+                    scene_bg = "white"
+                    paper_bg = "white"
+                    caption = None
+
+                fig.update_layout(
+                    scene=dict(
+                        aspectmode="data",
+                        xaxis_title="Width (mm)",
+                        yaxis_title="Thickness (mm)",
+                        zaxis_title="Height (mm)",
+                        camera=dict(
+                            eye=dict(x=0, y=-2.2, z=0.3),
+                            up=dict(x=0, y=0, z=1),
+                            center=dict(x=0, y=0, z=0),
+                        ),
+                        bgcolor=scene_bg,
                     ),
+                    margin=dict(l=0, r=0, t=0, b=0),
+                    height=500,
+                    paper_bgcolor=paper_bg,
                 )
-            ])
-            fig.update_layout(
-                scene=dict(
-                    aspectmode="data",
-                    xaxis_title="Width (mm)",
-                    yaxis_title="Thickness (mm)",
-                    zaxis_title="Height (mm)",
-                    camera=dict(
-                        eye=dict(x=0, y=-2.2, z=0.3),
-                        up=dict(x=0, y=0, z=1),
-                        center=dict(x=0, y=0, z=0),
-                    ),
-                    bgcolor="black" if st.session_state.backlight else "white",
-                ),
-                margin=dict(l=0, r=0, t=0, b=0),
-                height=500,
-                paper_bgcolor="black" if st.session_state.backlight else "white",
-            )
-            st.plotly_chart(fig, use_container_width=True)
-
-            if st.session_state.backlight:
-                st.caption("Backlight mode: thinner areas appear brighter (simulating light shining through).")
+                st.plotly_chart(fig, use_container_width=True)
+                if caption:
+                    st.caption(caption)
+            else:
+                st.info("Generate a panel to see the 3D preview.")
 
 # ── Library ───────────────────────────────────────────────────
 st.markdown("---")

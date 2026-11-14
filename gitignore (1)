@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.env
+*.stl
+test_*.png
+out_*.stl
+.DS_Store

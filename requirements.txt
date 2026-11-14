@@ -1,0 +1,7 @@
+numpy
+pillow
+trimesh
+scipy
+networkx
+fast-simplification
+streamlit

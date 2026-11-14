@@ -1,5 +1,3 @@
-
-st.markdown("**Print tips:** vertical orientation, white/natural PLA, 0.1–0.12 mm layers, solid walls.")
 #!/usr/bin/env python3
 """
 Interactive Lithophane Generator (Streamlit)
